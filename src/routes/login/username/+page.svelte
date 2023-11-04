@@ -1,13 +1,12 @@
 <script lang="ts">
     import AuthCheck from "$lib/components/AuthCheck.svelte";
-    import { db, user } from "$lib/firebase";
+    import { db, user, userData } from "$lib/firebase";
+
     import { doc, getDoc, writeBatch} from "firebase/firestore";
-  
     let username = "";
     let loading = false;
     let isAvailable = false;
-  
-    
+    let confirmed = false;
     let debounceTimer: NodeJS.Timeout;
   
     async function checkAvailability() {
@@ -17,8 +16,6 @@
       loading = true;
   
       debounceTimer = setTimeout(async () => {
-          console.log("checking availability of", username);
-          
           const ref = doc(db, "usernames", username);
           const exists = await getDoc(ref).then((doc) => doc.exists());
   
@@ -30,7 +27,7 @@
     }
   
     async function confirmUsername() {
-        console.log("confirming username", username);
+  console.log('confirm user...')
     const batch = writeBatch(db);
     batch.set(doc(db, "usernames", username), { uid: $user?.uid });
     batch.set(doc(db, "users", $user!.uid), { 
@@ -48,9 +45,18 @@
     });
 
     await batch.commit();
-
+    confirmed = true;
+  
     username = '';
     isAvailable = false;
+    }
+//find a betterway to handle this
+    $: if (confirmed) {
+        if ($userData) {
+            console.log($userData.username); // Access the username property
+        } else {
+            console.log("userData is not available yet.");
+        }
     }
 
     
@@ -60,11 +66,16 @@
     $: isTouched = username.length > 0;
     $: isTaken = isValid && !isAvailable && !loading
   
-  
+
   </script>
   
   
   <AuthCheck>
+    {#if confirmed}
+    <p >Your username is <span class="text-success">@{$userData.username}</span></p>
+    <p >(Usernames cannot be changed)</p>
+    <a class="btn btn-primary" href="/login/photo"> Upload Avatar</a>
+    {:else}
   <form class="w-2/5" on:submit|preventDefault={confirmUsername}>
     <input
       type="text"
@@ -98,6 +109,6 @@
       {/if}
     </div>
   </form>
-  
+  {/if}
   
   </AuthCheck>
